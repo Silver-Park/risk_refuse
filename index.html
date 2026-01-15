@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>복승식 회피 판단 분석기 v2</title>
+    <title>복승식 회피 판단 분석기 - 완전판</title>
     <style>
         * {
             margin: 0;
@@ -95,13 +95,26 @@
             margin-bottom: 20px;
         }
         
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .result-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        
         .badge {
             display: inline-block;
             padding: 8px 16px;
             border-radius: 20px;
             font-size: 14px;
             font-weight: 600;
-            margin-bottom: 15px;
         }
         
         .badge-danger {
@@ -121,6 +134,12 @@
             margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
+            align-items: center;
+        }
+        
+        .metric-label {
+            font-weight: 600;
+            color: #666;
         }
         
         .metric-value {
@@ -136,11 +155,95 @@
             color: #2ed573;
         }
         
+        .detail-section {
+            margin-top: 20px;
+        }
+        
+        .detail-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .horse-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .horse-item {
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .horse-item.danger {
+            border-color: #ff4757;
+            background: #fff5f5;
+        }
+        
+        .horse-item.success {
+            border-color: #2ed573;
+            background: #f0fff4;
+        }
+        
+        .horse-number {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .horse-odds {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .combination-list {
+            margin-top: 10px;
+        }
+        
+        .combination-item {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .combination-horses {
+            font-weight: 600;
+        }
+        
+        .combination-odds {
+            font-size: 12px;
+            color: #666;
+            margin-top: 3px;
+        }
+        
+        .combination-ratio {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .combination-ratio.danger {
+            color: #ff4757;
+        }
+        
+        .combination-ratio.success {
+            color: #2ed573;
+        }
+        
         .final-decision {
             border-radius: 15px;
             padding: 30px;
             text-align: center;
             color: white;
+            margin-top: 20px;
         }
         
         .final-decision.danger {
@@ -158,11 +261,25 @@
         
         .info-box {
             background: #e3f2fd;
+            border-left: 4px solid #2196f3;
             padding: 15px;
             border-radius: 8px;
             margin-top: 15px;
             font-size: 14px;
             line-height: 1.8;
+            color: #333;
+        }
+        
+        .debug-info {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 13px;
+            color: #856404;
+            font-family: monospace;
+            line-height: 1.6;
         }
     </style>
 </head>
@@ -174,10 +291,17 @@
         </div>
         
         <div class="content">
-            <textarea id="dataInput" placeholder="복승식 배당 데이터를 붙여넣으세요"></textarea>
+            <label style="display:block; font-weight:600; margin-bottom:10px;">복승식 배당 데이터 입력</label>
+            <textarea id="dataInput" placeholder="복승식 배당 데이터를 붙여넣으세요
+
+예시:
+①⑨  2.7  ①⑤  4.6  ⑤⑨  5.3
+⑧⑨  16.1  ①②  17.2  ①⑧  17.9
+..."></textarea>
             
             <div class="button-group">
                 <button class="btn-primary" onclick="analyze()">분석하기</button>
+                <button class="btn-secondary" onclick="loadExample()">예시 데이터</button>
                 <button class="btn-secondary" onclick="clearData()">초기화</button>
             </div>
             
@@ -186,6 +310,26 @@
     </div>
 
     <script>
+        function loadExample() {
+            const example = `①⑨  2.7  ①⑤  4.6  ⑤⑨  5.3
+⑧⑨  16.1  ①②  17.2  ①⑧  17.9
+②⑨  22.0  ⑨⑩  32.8  ①⑩  33.5
+⑤⑧  33.9  ①⑦  44.2  ②⑤  45.1
+①③  46.1  ①④  46.5  ⑦⑨  54.3
+①⑥  59.1  ⑥⑨  67.5  ④⑨  67.7
+⑤⑩  68.7  ③⑨  75.6  ⑤⑦  86.8
+④⑤  88.6  ③⑤  111.7  ⑤⑥  123.4
+②⑧  134.1  ⑦⑧  210.4  ⑧⑩  224.2
+②⑩  243.0  ②③  290.6  ④⑧  329.8
+②④  345.3  ③⑧  365.4  ②⑦  390.0
+⑥⑧  411.9  ②⑥  468.5  ⑥⑦  496.8
+⑦⑩  514.2  ④⑦  528.1  ④⑥  559.3
+③④  559.6  ⑥⑩  561.4  ③⑦  694.1
+④⑩  711.0  ③⑩  721.5  ③⑥  862.6`;
+            document.getElementById('dataInput').value = example;
+            alert('19경주 예시 데이터 (5901배)');
+        }
+
         function clearData() {
             document.getElementById('dataInput').value = '';
             document.getElementById('result').classList.remove('show');
@@ -203,6 +347,7 @@
                 const lines = input.split('\n');
                 const pairs = [];
                 const horseMaxOdds = {};
+                const pairMap = {};
 
                 lines.forEach(line => {
                     const parts = line.split(/\s+/);
@@ -220,6 +365,11 @@
                                         horseMaxOdds[horse] = odds;
                                     }
                                 });
+                                
+                                if (horseNumbers.length === 2) {
+                                    const key = horseNumbers.sort().join('');
+                                    pairMap[key] = odds;
+                                }
                             }
                         }
                     }
@@ -230,78 +380,184 @@
                     return;
                 }
 
-                // 500배 이상 마번
+                // 위험 마번 (500배 이상)
                 const totalHorses = Object.keys(horseMaxOdds).length;
-                const dangerHorses500 = Object.entries(horseMaxOdds).filter(([_, odds]) => odds >= 500);
-                const ratio500 = (dangerHorses500.length / totalHorses * 100);
+                const dangerHorses = Object.entries(horseMaxOdds).filter(([_, odds]) => odds >= 500);
+                const ratio500 = (dangerHorses.length / totalHorses * 100);
 
-                // 500배 이상 조합
+                // 고배당 조합 (500배 이상)
                 const highPairs = pairs.filter(p => p.odds >= 500).length;
                 const highRatio = (highPairs / pairs.length * 100);
 
                 // 편차 계산
                 const sortedPairs = [...pairs].sort((a, b) => a.odds - b.odds);
-                const top5 = sortedPairs.slice(0, 5);
-                const maxOdds = Math.max(...top5.map(p => p.odds));
-                const minOdds = Math.min(...top5.map(p => p.odds));
-                const variance = maxOdds / minOdds;
+                const topPairs = sortedPairs.slice(0, Math.min(10, sortedPairs.length));
+                
+                const horseFreq = {};
+                topPairs.forEach(pair => {
+                    const horses = pair.horses.match(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯]/g) || [];
+                    horses.forEach(h => {
+                        horseFreq[h] = (horseFreq[h] || 0) + 1;
+                    });
+                });
 
-                // 판정
-                const isDanger = ratio500 >= 40 || highRatio >= 20 || variance >= 15;
+                const topHorses = Object.entries(horseFreq)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, Math.min(5, Object.keys(horseFreq).length))
+                    .map(([h, _]) => h);
 
-                displayResult(isDanger, ratio500, highRatio, variance, dangerHorses500.length, totalHorses);
+                const maxVariances = [];
+                
+                if (topHorses.length >= 3) {
+                    for (let i = 0; i < topHorses.length - 2; i++) {
+                        for (let j = i + 1; j < topHorses.length - 1; j++) {
+                            for (let k = j + 1; k < topHorses.length; k++) {
+                                const h1 = topHorses[i];
+                                const h2 = topHorses[j];
+                                const h3 = topHorses[k];
+
+                                const key12 = [h1, h2].sort().join('');
+                                const key13 = [h1, h3].sort().join('');
+                                const key23 = [h2, h3].sort().join('');
+
+                                const odds12 = pairMap[key12];
+                                const odds13 = pairMap[key13];
+                                const odds23 = pairMap[key23];
+
+                                if (odds12 && odds13 && odds23) {
+                                    const odds = [odds12, odds13, odds23];
+                                    const maxOdds = Math.max(...odds);
+                                    const minOdds = Math.min(...odds);
+                                    const variance = maxOdds / minOdds;
+
+                                    maxVariances.push({
+                                        horses: `${h1}-${h2}-${h3}`,
+                                        variance: variance,
+                                        maxOdds: maxOdds,
+                                        minOdds: minOdds
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                maxVariances.sort((a, b) => b.variance - a.variance);
+                const maxVariance = maxVariances.length > 0 ? maxVariances[0].variance : 0;
+
+                // 판정 (수정된 기준)
+                const isDanger = ratio500 >= 50 || highRatio >= 25 || maxVariance >= 15;
+
+                displayResult(isDanger, ratio500, highRatio, maxVariance, dangerHorses, totalHorses, horseMaxOdds, maxVariances.slice(0, 5), pairs.length);
 
             } catch (error) {
                 alert('분석 중 오류: ' + error.message);
+                console.error(error);
             }
         }
 
-        function displayResult(isDanger, ratio500, highRatio, variance, dangerCount, totalHorses) {
-            const html = `
+        function displayResult(isDanger, ratio500, highRatio, maxVariance, dangerHorses, totalHorses, horseMaxOdds, topVariances, totalPairs) {
+            let html = `
                 <div class="result-card">
-                    <div class="badge ${ratio500 >= 40 ? 'badge-danger' : 'badge-success'}">
-                        위험 마번: ${ratio500 >= 40 ? '위험' : '안전'}
+                    <div class="result-header">
+                        <div class="result-title">위험 마번 분석</div>
+                        <div class="badge ${ratio500 >= 50 ? 'badge-danger' : 'badge-success'}">
+                            ${ratio500 >= 50 ? '위험' : '안전'}
+                        </div>
                     </div>
                     
                     <div class="metric">
-                        <span>위험 마번 비율 (500배 이상)</span>
-                        <span class="metric-value ${ratio500 >= 40 ? 'danger' : 'success'}">
+                        <span class="metric-label">위험 마번 비율 (500배 이상)</span>
+                        <span class="metric-value ${ratio500 >= 50 ? 'danger' : 'success'}">
                             ${ratio500.toFixed(1)}%
                         </span>
                     </div>
                     
                     <div class="metric">
-                        <span>위험 마번 수</span>
-                        <span class="metric-value">${dangerCount} / ${totalHorses}</span>
+                        <span class="metric-label">위험 마번 수</span>
+                        <span class="metric-value">${dangerHorses.length} / ${totalHorses}</span>
                     </div>
                     
                     <div class="metric">
-                        <span>고배당 조합 비율</span>
-                        <span class="metric-value ${highRatio >= 20 ? 'danger' : 'success'}">
+                        <span class="metric-label">고배당 조합 비율</span>
+                        <span class="metric-value ${highRatio >= 25 ? 'danger' : 'success'}">
                             ${highRatio.toFixed(1)}%
                         </span>
                     </div>
                     
+                    <div class="detail-section">
+                        <div class="detail-title">마번별 최고 배당 (500배 기준)</div>
+                        <div class="horse-list">
+            `;
+
+            Object.entries(horseMaxOdds)
+                .sort((a, b) => b[1] - a[1])
+                .forEach(([horse, odds]) => {
+                    const isDangerHorse = odds >= 500;
+                    html += `
+                        <div class="horse-item ${isDangerHorse ? 'danger' : 'success'}">
+                            <div class="horse-number">${horse}</div>
+                            <div class="horse-odds">${odds.toFixed(1)}배</div>
+                        </div>
+                    `;
+                });
+
+            html += `
+                        </div>
+                    </div>
+                    
                     <div class="info-box">
-                        기준 1: 500배 이상 마번이 40% 이상이면 위험<br>
-                        기준 2: 500배 이상 조합이 20% 이상이면 위험
+                        기준 1: 500배 이상 마번이 50% 이상이면 위험<br>
+                        기준 2: 500배 이상 조합이 25% 이상이면 위험
                     </div>
                 </div>
 
                 <div class="result-card">
-                    <div class="badge ${variance >= 15 ? 'badge-danger' : 'badge-success'}">
-                        편차 지수: ${variance >= 15 ? '위험' : '안전'}
+                    <div class="result-header">
+                        <div class="result-title">편차 지수 분석</div>
+                        <div class="badge ${maxVariance >= 15 ? 'badge-danger' : 'badge-success'}">
+                            ${maxVariance >= 15 ? '위험' : '안전'}
+                        </div>
                     </div>
                     
                     <div class="metric">
-                        <span>편차 지수</span>
-                        <span class="metric-value ${variance >= 15 ? 'danger' : 'success'}">
-                            ${variance.toFixed(1)}배
+                        <span class="metric-label">최대 편차 지수</span>
+                        <span class="metric-value ${maxVariance >= 15 ? 'danger' : 'success'}">
+                            ${maxVariance.toFixed(1)}배
                         </span>
                     </div>
                     
+                    <div class="detail-section">
+                        <div class="detail-title">예상 조합별 편차 (TOP 5)</div>
+            `;
+
+            if (topVariances.length > 0) {
+                html += '<div class="combination-list">';
+                topVariances.forEach(combo => {
+                    const isDangerCombo = combo.variance >= 15;
+                    html += `
+                        <div class="combination-item">
+                            <div>
+                                <div class="combination-horses">${combo.horses}</div>
+                                <div class="combination-odds">최고 ${combo.maxOdds.toFixed(1)}배 / 최저 ${combo.minOdds.toFixed(1)}배</div>
+                            </div>
+                            <div class="combination-ratio ${isDangerCombo ? 'danger' : 'success'}">
+                                ${combo.variance.toFixed(1)}배
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            } else {
+                html += '<p style="padding:20px; text-align:center; color:#999;">예상 조합을 찾을 수 없습니다</p>';
+            }
+
+            html += `
+                    </div>
+                    
                     <div class="info-box">
-                        기준: TOP5 조합의 최고/최저 배당 비율이 15배 이상이면 위험
+                        기준: TOP5 조합의 최고/최저 배당 비율이 15배 이상이면 위험<br>
+                        편차가 높을수록 3연승 순서에 따라 배당이 크게 차이날 수 있습니다
                     </div>
                 </div>
 
@@ -309,16 +565,39 @@
                     <div style="font-size: 48px;">${isDanger ? '⚠️' : '✅'}</div>
                     <h2>${isDanger ? '회피 권장' : '베팅 고려 가능'}</h2>
                     <p style="font-size: 16px; line-height: 1.8; margin-top: 15px;">
-                        ${isDanger ? 
-                            '위험 마번 ' + ratio500.toFixed(1) + '% + 고배당 조합 ' + highRatio.toFixed(1) + '% + 편차 ' + variance.toFixed(1) + '배로 초고배당 가능성이 높습니다. 회피를 권장합니다.' :
-                            '위험 마번 ' + ratio500.toFixed(1) + '% + 고배당 조합 ' + highRatio.toFixed(1) + '% + 편차 ' + variance.toFixed(1) + '배로 안전 구간입니다. 추가 정보를 참고하여 신중하게 판단하세요.'
-                        }
+            `;
+
+            if (isDanger) {
+                const reasons = [];
+                if (ratio500 >= 50) reasons.push('위험 마번 ' + ratio500.toFixed(1) + '%');
+                if (highRatio >= 25) reasons.push('고배당 조합 ' + highRatio.toFixed(1) + '%');
+                if (maxVariance >= 15) reasons.push('편차 지수 ' + maxVariance.toFixed(1) + '배');
+                
+                html += `
+                    ${reasons.join(' + ')}으로 초고배당 가능성이 높습니다.<br>
+                    이 경주는 예측이 어려우므로 회피를 강력히 권장합니다.<br>
+                    큰 손실을 방지하는 것이 최선입니다.
+                `;
+            } else {
+                html += `
+                    위험 마번 ${ratio500.toFixed(1)}% / 고배당 조합 ${highRatio.toFixed(1)}% / 편차 ${maxVariance.toFixed(1)}배로 안전 구간입니다.<br>
+                    단, 복승식 배당만으로는 정확한 예측이 어려우니<br>
+                    추가 정보 (기수, 최근 성적 등)를 참고하여 신중하게 판단하세요.
+                `;
+            }
+
+            html += `
                     </p>
+                </div>
+                
+                <div class="debug-info">
+                    디버그 정보: 전체 ${totalPairs}개 조합, ${totalHorses}마리 출전, TOP 조합 ${topVariances.length}개 분석
                 </div>
             `;
 
             document.getElementById('result').innerHTML = html;
             document.getElementById('result').classList.add('show');
+            document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     </script>
 </body>
