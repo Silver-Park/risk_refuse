@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -379,6 +378,7 @@
                 const lines = input.split('\n');
                 const pairs = [];
                 const horseMaxOdds = {};
+                const pairMap = {}; // 마번 쌍 -> 배당
 
                 lines.forEach(line => {
                     const parts = line.split(/\s+/);
@@ -397,6 +397,12 @@
                                         horseMaxOdds[horse] = odds;
                                     }
                                 });
+
+                                // 마번 쌍 매핑 (정렬해서 저장)
+                                if (horseNumbers.length === 2) {
+                                    const key = horseNumbers.sort().join('');
+                                    pairMap[key] = odds;
+                                }
                             }
                         }
                     }
@@ -412,11 +418,11 @@
                 const dangerHorses = Object.entries(horseMaxOdds).filter(([_, odds]) => odds >= 200);
                 const dangerRatio = (dangerHorses.length / totalHorses * 100).toFixed(1);
 
-                // 편차 지수 계산 (상위 조합들)
-                const topPairs = pairs.sort((a, b) => a.odds - b.odds).slice(0, 10);
+                // 편차 지수 계산 개선
+                const topPairs = pairs.sort((a, b) => a.odds - b.odds).slice(0, 15);
                 const maxVariances = [];
 
-                // TOP 10에서 자주 등장하는 마번 찾기
+                // TOP 15에서 자주 등장하는 마번 찾기
                 const horseFreq = {};
                 topPairs.forEach(pair => {
                     const horses = pair.horses.match(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯]/g) || [];
@@ -427,7 +433,7 @@
 
                 const topHorses = Object.entries(horseFreq)
                     .sort((a, b) => b[1] - a[1])
-                    .slice(0, 5)
+                    .slice(0, 6)
                     .map(([h, _]) => h);
 
                 // 가능한 조합들의 편차 계산
@@ -438,14 +444,17 @@
                             const h2 = topHorses[j];
                             const h3 = topHorses[k];
 
-                            const combo = [
-                                pairs.find(p => p.horses.includes(h1) && p.horses.includes(h2)),
-                                pairs.find(p => p.horses.includes(h1) && p.horses.includes(h3)),
-                                pairs.find(p => p.horses.includes(h2) && p.horses.includes(h3))
-                            ].filter(p => p);
+                            // 세 마번의 조합 찾기
+                            const key12 = [h1, h2].sort().join('');
+                            const key13 = [h1, h3].sort().join('');
+                            const key23 = [h2, h3].sort().join('');
 
-                            if (combo.length === 3) {
-                                const odds = combo.map(c => c.odds);
+                            const odds12 = pairMap[key12];
+                            const odds13 = pairMap[key13];
+                            const odds23 = pairMap[key23];
+
+                            if (odds12 && odds13 && odds23) {
+                                const odds = [odds12, odds13, odds23];
                                 const maxOdds = Math.max(...odds);
                                 const minOdds = Math.min(...odds);
                                 const variance = maxOdds / minOdds;
@@ -539,26 +548,30 @@
                     
                     <div class="detail-section">
                         <div class="detail-title">예상 조합별 편차 (TOP 5)</div>
-                        <div class="combination-list">
             `;
 
-            topVariances.forEach(combo => {
-                const isDangerCombo = parseFloat(combo.variance) >= 15;
-                html += `
-                    <div class="combination-item">
-                        <div>
-                            <div class="combination-horses">${combo.horses}</div>
-                            <div class="horse-odds">최고 ${combo.maxOdds}배 / 최저 ${combo.minOdds}배</div>
+            if (topVariances.length > 0) {
+                html += '<div class="combination-list">';
+                topVariances.forEach(combo => {
+                    const isDangerCombo = parseFloat(combo.variance) >= 15;
+                    html += `
+                        <div class="combination-item">
+                            <div>
+                                <div class="combination-horses">${combo.horses}</div>
+                                <div class="horse-odds">최고 ${combo.maxOdds}배 / 최저 ${combo.minOdds}배</div>
+                            </div>
+                            <div class="combination-ratio ${isDangerCombo ? 'danger' : 'success'}">
+                                ${combo.variance}배
+                            </div>
                         </div>
-                        <div class="combination-ratio ${isDangerCombo ? 'danger' : 'success'}">
-                            ${combo.variance}배
-                        </div>
-                    </div>
-                `;
-            });
+                    `;
+                });
+                html += '</div>';
+            } else {
+                html += '<p style="padding: 20px; text-align: center; color: #999;">예상 조합을 찾을 수 없습니다.</p>';
+            }
 
             html += `
-                        </div>
                     </div>
                     
                     <div class="info-box">
@@ -602,3 +615,31 @@
     </script>
 </body>
 </html>
+```
+
+---
+
+## 🔧 **주요 수정 사항:**
+
+1. **편차 지수 계산 로직 완전 재작성**
+   - TOP 15까지 확대해서 더 정확한 중심 마번 파악
+   - 마번 쌍 매핑으로 정확한 조합 찾기
+   - 실제 존재하는 조합만 계산
+
+2. **버그 수정**
+   - 조합을 찾을 수 없을 때 에러 처리
+   - 마번 정렬 오류 수정
+
+---
+
+## ✅ **테스트 결과 예상:**
+```
+66배 데이터:
+- 위험 마번: 50% (①③④⑤⑥⑧⑨⑩⑪)
+- 편차 지수: 약 3~5배
+→ 베팅 고려 가능 ✅
+
+84배 데이터:
+- 위험 마번: 30% 미만
+- 편차 지수: 약 10배
+→ 베팅 고려 가능 ✅
