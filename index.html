@@ -425,16 +425,19 @@
                     return;
                 }
 
-                // 위험 마번 계산
+                // 위험 마번 계산 - 500배 기준으로 변경!
                 const totalHorses = Object.keys(horseMaxOdds).length;
-                const dangerHorses = Object.entries(horseMaxOdds).filter(([_, odds]) => odds >= 200);
+                const dangerHorses = Object.entries(horseMaxOdds).filter(([_, odds]) => odds >= 500);
                 const dangerRatio = (dangerHorses.length / totalHorses * 100).toFixed(1);
 
-                // 편차 지수 계산 - 실제 TOP 조합만 사용
+                // 고배당 조합 개수 계산
+                const highOddsPairs = pairs.filter(p => p.odds >= 500).length;
+                const highOddsRatio = (highOddsPairs / pairs.length * 100).toFixed(1);
+
+                // 편차 지수 계산
                 const sortedPairs = pairs.sort((a, b) => a.odds - b.odds);
                 const topPairs = sortedPairs.slice(0, Math.min(10, sortedPairs.length));
                 
-                // TOP 10에서 가장 많이 등장하는 마번 찾기
                 const horseFreq = {};
                 topPairs.forEach(pair => {
                     const horses = pair.horses.match(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯]/g) || [];
@@ -448,7 +451,6 @@
                     .slice(0, Math.min(5, Object.keys(horseFreq).length))
                     .map(([h, _]) => h);
 
-                // 가능한 조합의 편차 계산
                 const maxVariances = [];
                 
                 if (topHorses.length >= 3) {
@@ -489,7 +491,7 @@
                 const maxVariance = maxVariances.length > 0 ? maxVariances[0].variance : 0;
 
                 // 결과 표시
-                displayResult(dangerRatio, dangerHorses, totalHorses, horseMaxOdds, maxVariance, maxVariances.slice(0, 5), pairs.length);
+                displayResult(dangerRatio, dangerHorses, totalHorses, horseMaxOdds, maxVariance, maxVariances.slice(0, 5), pairs.length, highOddsRatio);
 
             } catch (error) {
                 alert('데이터 분석 중 오류가 발생했습니다: ' + error.message);
@@ -497,21 +499,21 @@
             }
         }
 
-        function displayResult(dangerRatio, dangerHorses, totalHorses, horseMaxOdds, maxVariance, topVariances, totalPairs) {
-            const isDanger = parseFloat(dangerRatio) >= 50 || maxVariance >= 15;
+        function displayResult(dangerRatio, dangerHorses, totalHorses, horseMaxOdds, maxVariance, topVariances, totalPairs, highOddsRatio) {
+            const isDanger = parseFloat(dangerRatio) >= 40 || maxVariance >= 15 || parseFloat(highOddsRatio) >= 30;
             
             let html = `
                 <div class="result-card">
                     <div class="result-header">
                         <div class="result-title">📊 위험 마번 분석</div>
-                        <div class="badge ${parseFloat(dangerRatio) >= 50 ? 'badge-danger' : 'badge-success'}">
-                            ${parseFloat(dangerRatio) >= 50 ? '⚠️ 위험' : '✅ 안전'}
+                        <div class="badge ${parseFloat(dangerRatio) >= 40 ? 'badge-danger' : 'badge-success'}">
+                            ${parseFloat(dangerRatio) >= 40 ? '⚠️ 위험' : '✅ 안전'}
                         </div>
                     </div>
                     
                     <div class="metric">
-                        <span class="metric-label">위험 마번 비율</span>
-                        <span class="metric-value ${parseFloat(dangerRatio) >= 50 ? 'danger' : 'success'}">
+                        <span class="metric-label">위험 마번 비율 (500배 기준)</span>
+                        <span class="metric-value ${parseFloat(dangerRatio) >= 40 ? 'danger' : 'success'}">
                             ${dangerRatio}%
                         </span>
                     </div>
@@ -520,16 +522,23 @@
                         <span class="metric-label">위험 마번 수</span>
                         <span class="metric-value">${dangerHorses.length} / ${totalHorses}</span>
                     </div>
+
+                    <div class="metric">
+                        <span class="metric-label">고배당 조합 비율 (500배 이상)</span>
+                        <span class="metric-value ${parseFloat(highOddsRatio) >= 30 ? 'danger' : 'success'}">
+                            ${highOddsRatio}%
+                        </span>
+                    </div>
                     
                     <div class="detail-section">
-                        <div class="detail-title">마번별 최고 배당 (200배 기준)</div>
+                        <div class="detail-title">마번별 최고 배당 (500배 기준)</div>
                         <div class="horse-list">
             `;
 
             Object.entries(horseMaxOdds)
                 .sort((a, b) => b[1] - a[1])
                 .forEach(([horse, odds]) => {
-                    const isDangerHorse = odds >= 200;
+                    const isDangerHorse = odds >= 500;
                     html += `
                         <div class="horse-item ${isDangerHorse ? 'danger' : 'success'}">
                             <div class="horse-number">${horse}</div>
@@ -543,7 +552,8 @@
                     </div>
                     
                     <div class="info-box">
-                        기준: 최고 배당이 200배 이상인 마번이 전체의 50% 이상이면 위험!
+                        기준: 최고 배당이 500배 이상인 마번이 40% 이상이면 위험!<br>
+                        또는 500배 이상 조합이 전체의 30% 이상이면 위험!
                     </div>
                 </div>
 
@@ -604,8 +614,9 @@
 
             if (isDanger) {
                 const reasons = [];
-                if (parseFloat(dangerRatio) >= 50) reasons.push(`위험 마번 ${dangerRatio}%`);
+                if (parseFloat(dangerRatio) >= 40) reasons.push(`위험 마번 ${dangerRatio}%`);
                 if (maxVariance >= 15) reasons.push(`편차 지수 ${maxVariance.toFixed(1)}배`);
+                if (parseFloat(highOddsRatio) >= 30) reasons.push(`고배당 조합 ${highOddsRatio}%`);
                 
                 html += `
                     ${reasons.join(' + ')}으로 초고배당 가능성이 높습니다.<br>
@@ -614,7 +625,7 @@
                 `;
             } else {
                 html += `
-                    위험 마번 ${dangerRatio}% / 편차 지수 ${maxVariance.toFixed(1)}배로 <strong>안전 구간</strong>입니다.<br>
+                    위험 마번 ${dangerRatio}% / 편차 지수 ${maxVariance.toFixed(1)}배 / 고배당 조합 ${highOddsRatio}%로 <strong>안전 구간</strong>입니다.<br>
                     단, 복승식 배당만으로는 정확한 예측이 어려우니<br>
                     <strong>추가 정보 (기수, 최근 성적 등)를 참고</strong>하여 신중하게 판단하세요!
                 `;
@@ -625,7 +636,7 @@
                 </div>
                 
                 <div class="debug-info">
-                    디버그 정보: 전체 ${totalPairs}개 조합, ${totalHorses}마리 출전, TOP 조합 ${topVariances.length}개 분석
+                    디버그: 전체 ${totalPairs}개 조합, ${totalHorses}마리 출전, TOP 조합 ${topVariances.length}개 분석
                 </div>
             `;
 
@@ -640,29 +651,40 @@
 
 ---
 
-## 🔧 **주요 수정 사항:**
+## 🔧 **핵심 수정 사항:**
 
-### **1. 글자 깨짐 해결:**
-- 특수문자 인코딩 제거
-- HTML 엔티티 대신 일반 텍스트 사용
-- `line-height` 추가로 가독성 향상
+### **1. 위험 마번 기준 변경:**
+```
+기존: 200배 이상 = 위험
+수정: 500배 이상 = 위험 ✅
+```
 
-### **2. 저배당도 회피 나오는 문제 해결:**
-- 편차 지수 계산 로직 완전 재작성
-- 실제 존재하는 조합만 계산
-- `parseFloat()` 명확히 적용
-- 디버그 정보 추가
+### **2. 고배당 조합 비율 추가:**
+```
+500배 이상 조합이 전체의 30% 이상
+→ 위험! ⚠️
+```
+
+### **3. 회피 조건 수정:**
+```
+다음 중 하나라도 해당 시 회피:
+- 위험 마번 40% 이상 (500배 기준)
+- 편차 지수 15배 이상
+- 고배당 조합 30% 이상
+```
 
 ---
 
 ## ✅ **예상 결과:**
 ```
-66배 데이터 (5,2,7):
-- 위험 마번: 50% (①③④⑤⑥⑧⑨⑩⑪ 중 일부)
+66배 데이터:
+- 위험 마번: 약 20~30% (500배 기준)
 - 편차 지수: 약 6~8배
+- 고배당 조합: 약 10~20%
 → 베팅 고려 가능 ✅
 
-84배 데이터 (5,7,1):
-- 위험 마번: 30% 미만
+84배 데이터:
+- 위험 마번: 약 10% 미만
 - 편차 지수: 약 4~6배
+- 고배당 조합: 약 0~10%
 → 베팅 고려 가능 ✅
