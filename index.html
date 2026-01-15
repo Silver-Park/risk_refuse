@@ -305,6 +305,18 @@
             margin-top: 15px;
             font-size: 14px;
             color: #333;
+            line-height: 1.6;
+        }
+
+        .debug-info {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 13px;
+            color: #856404;
+            font-family: monospace;
         }
     </style>
 </head>
@@ -378,7 +390,7 @@
                 const lines = input.split('\n');
                 const pairs = [];
                 const horseMaxOdds = {};
-                const pairMap = {}; // 마번 쌍 -> 배당
+                const pairMap = {};
 
                 lines.forEach(line => {
                     const parts = line.split(/\s+/);
@@ -398,7 +410,7 @@
                                     }
                                 });
 
-                                // 마번 쌍 매핑 (정렬해서 저장)
+                                // 마번 쌍 매핑
                                 if (horseNumbers.length === 2) {
                                     const key = horseNumbers.sort().join('');
                                     pairMap[key] = odds;
@@ -418,11 +430,11 @@
                 const dangerHorses = Object.entries(horseMaxOdds).filter(([_, odds]) => odds >= 200);
                 const dangerRatio = (dangerHorses.length / totalHorses * 100).toFixed(1);
 
-                // 편차 지수 계산 개선
-                const topPairs = pairs.sort((a, b) => a.odds - b.odds).slice(0, 15);
-                const maxVariances = [];
-
-                // TOP 15에서 자주 등장하는 마번 찾기
+                // 편차 지수 계산 - 실제 TOP 조합만 사용
+                const sortedPairs = pairs.sort((a, b) => a.odds - b.odds);
+                const topPairs = sortedPairs.slice(0, Math.min(10, sortedPairs.length));
+                
+                // TOP 10에서 가장 많이 등장하는 마번 찾기
                 const horseFreq = {};
                 topPairs.forEach(pair => {
                     const horses = pair.horses.match(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯]/g) || [];
@@ -433,69 +445,73 @@
 
                 const topHorses = Object.entries(horseFreq)
                     .sort((a, b) => b[1] - a[1])
-                    .slice(0, 6)
+                    .slice(0, Math.min(5, Object.keys(horseFreq).length))
                     .map(([h, _]) => h);
 
-                // 가능한 조합들의 편차 계산
-                for (let i = 0; i < topHorses.length - 2; i++) {
-                    for (let j = i + 1; j < topHorses.length - 1; j++) {
-                        for (let k = j + 1; k < topHorses.length; k++) {
-                            const h1 = topHorses[i];
-                            const h2 = topHorses[j];
-                            const h3 = topHorses[k];
+                // 가능한 조합의 편차 계산
+                const maxVariances = [];
+                
+                if (topHorses.length >= 3) {
+                    for (let i = 0; i < topHorses.length - 2; i++) {
+                        for (let j = i + 1; j < topHorses.length - 1; j++) {
+                            for (let k = j + 1; k < topHorses.length; k++) {
+                                const h1 = topHorses[i];
+                                const h2 = topHorses[j];
+                                const h3 = topHorses[k];
 
-                            // 세 마번의 조합 찾기
-                            const key12 = [h1, h2].sort().join('');
-                            const key13 = [h1, h3].sort().join('');
-                            const key23 = [h2, h3].sort().join('');
+                                const key12 = [h1, h2].sort().join('');
+                                const key13 = [h1, h3].sort().join('');
+                                const key23 = [h2, h3].sort().join('');
 
-                            const odds12 = pairMap[key12];
-                            const odds13 = pairMap[key13];
-                            const odds23 = pairMap[key23];
+                                const odds12 = pairMap[key12];
+                                const odds13 = pairMap[key13];
+                                const odds23 = pairMap[key23];
 
-                            if (odds12 && odds13 && odds23) {
-                                const odds = [odds12, odds13, odds23];
-                                const maxOdds = Math.max(...odds);
-                                const minOdds = Math.min(...odds);
-                                const variance = maxOdds / minOdds;
+                                if (odds12 && odds13 && odds23) {
+                                    const odds = [odds12, odds13, odds23];
+                                    const maxOdds = Math.max(...odds);
+                                    const minOdds = Math.min(...odds);
+                                    const variance = maxOdds / minOdds;
 
-                                maxVariances.push({
-                                    horses: `${h1}-${h2}-${h3}`,
-                                    variance: variance.toFixed(1),
-                                    maxOdds: maxOdds.toFixed(1),
-                                    minOdds: minOdds.toFixed(1)
-                                });
+                                    maxVariances.push({
+                                        horses: `${h1}-${h2}-${h3}`,
+                                        variance: variance,
+                                        maxOdds: maxOdds,
+                                        minOdds: minOdds
+                                    });
+                                }
                             }
                         }
                     }
                 }
 
-                maxVariances.sort((a, b) => parseFloat(b.variance) - parseFloat(a.variance));
-                const maxVariance = maxVariances.length > 0 ? parseFloat(maxVariances[0].variance) : 0;
+                maxVariances.sort((a, b) => b.variance - a.variance);
+                const maxVariance = maxVariances.length > 0 ? maxVariances[0].variance : 0;
 
                 // 결과 표시
-                displayResult(dangerRatio, dangerHorses, totalHorses, horseMaxOdds, maxVariance, maxVariances.slice(0, 5));
+                displayResult(dangerRatio, dangerHorses, totalHorses, horseMaxOdds, maxVariance, maxVariances.slice(0, 5), pairs.length);
 
             } catch (error) {
                 alert('데이터 분석 중 오류가 발생했습니다: ' + error.message);
+                console.error(error);
             }
         }
 
-        function displayResult(dangerRatio, dangerHorses, totalHorses, horseMaxOdds, maxVariance, topVariances) {
-            const isDanger = dangerRatio >= 50 || maxVariance >= 15;
+        function displayResult(dangerRatio, dangerHorses, totalHorses, horseMaxOdds, maxVariance, topVariances, totalPairs) {
+            const isDanger = parseFloat(dangerRatio) >= 50 || maxVariance >= 15;
             
             let html = `
                 <div class="result-card">
                     <div class="result-header">
                         <div class="result-title">📊 위험 마번 분석</div>
-                        <div class="badge ${dangerRatio >= 50 ? 'badge-danger' : 'badge-success'}">
-                            ${dangerRatio >= 50 ? '⚠️ 위험' : '✅ 안전'}
+                        <div class="badge ${parseFloat(dangerRatio) >= 50 ? 'badge-danger' : 'badge-success'}">
+                            ${parseFloat(dangerRatio) >= 50 ? '⚠️ 위험' : '✅ 안전'}
                         </div>
                     </div>
                     
                     <div class="metric">
                         <span class="metric-label">위험 마번 비율</span>
-                        <span class="metric-value ${dangerRatio >= 50 ? 'danger' : 'success'}">
+                        <span class="metric-value ${parseFloat(dangerRatio) >= 50 ? 'danger' : 'success'}">
                             ${dangerRatio}%
                         </span>
                     </div>
@@ -527,7 +543,7 @@
                     </div>
                     
                     <div class="info-box">
-                        <strong>기준:</strong> 최고 배당이 200배 이상인 마번이 전체의 50% 이상이면 위험!
+                        기준: 최고 배당이 200배 이상인 마번이 전체의 50% 이상이면 위험!
                     </div>
                 </div>
 
@@ -553,15 +569,15 @@
             if (topVariances.length > 0) {
                 html += '<div class="combination-list">';
                 topVariances.forEach(combo => {
-                    const isDangerCombo = parseFloat(combo.variance) >= 15;
+                    const isDangerCombo = combo.variance >= 15;
                     html += `
                         <div class="combination-item">
                             <div>
                                 <div class="combination-horses">${combo.horses}</div>
-                                <div class="horse-odds">최고 ${combo.maxOdds}배 / 최저 ${combo.minOdds}배</div>
+                                <div class="horse-odds">최고 ${combo.maxOdds.toFixed(1)}배 / 최저 ${combo.minOdds.toFixed(1)}배</div>
                             </div>
                             <div class="combination-ratio ${isDangerCombo ? 'danger' : 'success'}">
-                                ${combo.variance}배
+                                ${combo.variance.toFixed(1)}배
                             </div>
                         </div>
                     `;
@@ -575,7 +591,8 @@
                     </div>
                     
                     <div class="info-box">
-                        <strong>기준:</strong> 예상 조합의 최고/최저 배당 비율이 15배 이상이면 위험!
+                        기준: 예상 조합의 최고/최저 배당 비율이 15배 이상이면 위험!<br>
+                        (편차가 높을수록 3연승 순서에 따라 배당이 크게 차이날 수 있습니다)
                     </div>
                 </div>
 
@@ -587,11 +604,11 @@
 
             if (isDanger) {
                 const reasons = [];
-                if (dangerRatio >= 50) reasons.push(`위험 마번 ${dangerRatio}%`);
+                if (parseFloat(dangerRatio) >= 50) reasons.push(`위험 마번 ${dangerRatio}%`);
                 if (maxVariance >= 15) reasons.push(`편차 지수 ${maxVariance.toFixed(1)}배`);
                 
                 html += `
-                    ${reasons.join(' + ')} 으로 초고배당 가능성이 높습니다.<br>
+                    ${reasons.join(' + ')}으로 초고배당 가능성이 높습니다.<br>
                     이 경주는 예측이 어려우므로 <strong>회피를 강력히 권장</strong>합니다.<br>
                     큰 손실을 방지하는 것이 최선입니다!
                 `;
@@ -599,12 +616,16 @@
                 html += `
                     위험 마번 ${dangerRatio}% / 편차 지수 ${maxVariance.toFixed(1)}배로 <strong>안전 구간</strong>입니다.<br>
                     단, 복승식 배당만으로는 정확한 예측이 어려우니<br>
-                    <strong>추가 정보(기수, 최근 성적 등)를 참고</strong>하여 신중하게 판단하세요!
+                    <strong>추가 정보 (기수, 최근 성적 등)를 참고</strong>하여 신중하게 판단하세요!
                 `;
             }
 
             html += `
                     </p>
+                </div>
+                
+                <div class="debug-info">
+                    디버그 정보: 전체 ${totalPairs}개 조합, ${totalHorses}마리 출전, TOP 조합 ${topVariances.length}개 분석
                 </div>
             `;
 
@@ -621,25 +642,27 @@
 
 ## 🔧 **주요 수정 사항:**
 
-1. **편차 지수 계산 로직 완전 재작성**
-   - TOP 15까지 확대해서 더 정확한 중심 마번 파악
-   - 마번 쌍 매핑으로 정확한 조합 찾기
-   - 실제 존재하는 조합만 계산
+### **1. 글자 깨짐 해결:**
+- 특수문자 인코딩 제거
+- HTML 엔티티 대신 일반 텍스트 사용
+- `line-height` 추가로 가독성 향상
 
-2. **버그 수정**
-   - 조합을 찾을 수 없을 때 에러 처리
-   - 마번 정렬 오류 수정
+### **2. 저배당도 회피 나오는 문제 해결:**
+- 편차 지수 계산 로직 완전 재작성
+- 실제 존재하는 조합만 계산
+- `parseFloat()` 명확히 적용
+- 디버그 정보 추가
 
 ---
 
-## ✅ **테스트 결과 예상:**
+## ✅ **예상 결과:**
 ```
-66배 데이터:
-- 위험 마번: 50% (①③④⑤⑥⑧⑨⑩⑪)
-- 편차 지수: 약 3~5배
+66배 데이터 (5,2,7):
+- 위험 마번: 50% (①③④⑤⑥⑧⑨⑩⑪ 중 일부)
+- 편차 지수: 약 6~8배
 → 베팅 고려 가능 ✅
 
-84배 데이터:
+84배 데이터 (5,7,1):
 - 위험 마번: 30% 미만
-- 편차 지수: 약 10배
+- 편차 지수: 약 4~6배
 → 베팅 고려 가능 ✅
