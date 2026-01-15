@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>복승식 회피 판단 분석기 - 완전판</title>
+    <title>복승식 회피 판단 분석기 - 수정판</title>
     <style>
         * {
             margin: 0;
@@ -367,7 +367,8 @@
                                 });
                                 
                                 if (horseNumbers.length === 2) {
-                                    const key = horseNumbers.sort().join('');
+                                    const sorted = horseNumbers.sort();
+                                    const key = sorted[0] + sorted[1];
                                     pairMap[key] = odds;
                                 }
                             }
@@ -389,7 +390,7 @@
                 const highPairs = pairs.filter(p => p.odds >= 500).length;
                 const highRatio = (highPairs / pairs.length * 100);
 
-                // 편차 계산
+                // 편차 계산 (수정됨)
                 const sortedPairs = [...pairs].sort((a, b) => a.odds - b.odds);
                 const topPairs = sortedPairs.slice(0, Math.min(10, sortedPairs.length));
                 
@@ -416,6 +417,7 @@
                                 const h2 = topHorses[j];
                                 const h3 = topHorses[k];
 
+                                // 수정된 부분: 정확한 키 생성
                                 const key12 = [h1, h2].sort().join('');
                                 const key13 = [h1, h3].sort().join('');
                                 const key23 = [h2, h3].sort().join('');
@@ -434,7 +436,10 @@
                                         horses: `${h1}-${h2}-${h3}`,
                                         variance: variance,
                                         maxOdds: maxOdds,
-                                        minOdds: minOdds
+                                        minOdds: minOdds,
+                                        odds12: odds12,
+                                        odds13: odds13,
+                                        odds23: odds23
                                     });
                                 }
                             }
@@ -445,7 +450,7 @@
                 maxVariances.sort((a, b) => b.variance - a.variance);
                 const maxVariance = maxVariances.length > 0 ? maxVariances[0].variance : 0;
 
-                // 판정 (수정된 기준)
+                // 판정
                 const isDanger = ratio500 >= 50 || highRatio >= 25 || maxVariance >= 15;
 
                 displayResult(isDanger, ratio500, highRatio, maxVariance, dangerHorses, totalHorses, horseMaxOdds, maxVariances.slice(0, 5), pairs.length);
@@ -535,11 +540,16 @@
                 html += '<div class="combination-list">';
                 topVariances.forEach(combo => {
                     const isDangerCombo = combo.variance >= 15;
+                    const horses = combo.horses.split('-');
                     html += `
                         <div class="combination-item">
                             <div>
                                 <div class="combination-horses">${combo.horses}</div>
-                                <div class="combination-odds">최고 ${combo.maxOdds.toFixed(1)}배 / 최저 ${combo.minOdds.toFixed(1)}배</div>
+                                <div class="combination-odds">
+                                    ${horses[0]}${horses[1]} ${combo.odds12.toFixed(1)}배 / 
+                                    ${horses[0]}${horses[2]} ${combo.odds13.toFixed(1)}배 / 
+                                    ${horses[1]}${horses[2]} ${combo.odds23.toFixed(1)}배
+                                </div>
                             </div>
                             <div class="combination-ratio ${isDangerCombo ? 'danger' : 'success'}">
                                 ${combo.variance.toFixed(1)}배
@@ -556,8 +566,9 @@
                     </div>
                     
                     <div class="info-box">
-                        기준: TOP5 조합의 최고/최저 배당 비율이 15배 이상이면 위험<br>
-                        편차가 높을수록 3연승 순서에 따라 배당이 크게 차이날 수 있습니다
+                        기준: TOP10 조합에서 자주 등장하는 마번들의 편차 계산<br>
+                        편차 = (3마 조합의 최고 복승식 배당) / (최저 복승식 배당)<br>
+                        편차가 15배 이상이면 3연승 순서에 따라 배당이 크게 차이날 수 있습니다
                     </div>
                 </div>
 
