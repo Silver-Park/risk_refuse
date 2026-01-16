@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>복승식 회피 판단 분석기 v3 - 개선판</title>
+    <title>복승식 회피 판단 분석기 v3 - 수정판</title>
     <style>
         * {
             margin: 0;
@@ -102,7 +102,7 @@
         .result-card {
             background: #f8f9fa;
             border-radius: 15px;
-            padding: 25px;
+            padding: 20px;
             margin-bottom: 20px;
         }
         
@@ -113,6 +113,8 @@
             margin-bottom: 20px;
             padding-bottom: 15px;
             border-bottom: 2px solid #e0e0e0;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         
         .result-title {
@@ -138,11 +140,6 @@
             color: white;
         }
         
-        .badge-warning {
-            background: #ffa502;
-            color: white;
-        }
-        
         .metric {
             background: white;
             padding: 15px;
@@ -151,11 +148,14 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         
         .metric-label {
             font-weight: 600;
             color: #666;
+            font-size: 14px;
         }
         
         .metric-value {
@@ -171,22 +171,25 @@
             color: #2ed573;
         }
         
-        .metric-value.warning {
-            color: #ffa502;
-        }
-        
+        /* 모바일 대응: 4개 박스 수정 */
         .risk-indicator {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             margin-top: 20px;
         }
         
+        @media (min-width: 600px) {
+            .risk-indicator {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        
         .risk-item {
-            flex: 1;
-            padding: 15px;
+            padding: 12px;
             border-radius: 10px;
             text-align: center;
-            font-size: 13px;
+            font-size: 12px;
         }
         
         .risk-item.safe {
@@ -201,12 +204,19 @@
         
         .risk-item-title {
             font-weight: 700;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
+            font-size: 11px;
         }
         
         .risk-item-value {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
+        }
+        
+        .risk-item-threshold {
+            font-size: 10px;
+            margin-top: 3px;
+            color: #666;
         }
         
         .detail-section {
@@ -217,17 +227,18 @@
             font-weight: 600;
             margin-bottom: 10px;
             color: #333;
+            font-size: 15px;
         }
         
         .horse-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
             margin-top: 10px;
         }
         
         .horse-item {
-            padding: 12px;
+            padding: 10px;
             background: white;
             border-radius: 8px;
             text-align: center;
@@ -245,19 +256,19 @@
         }
         
         .horse-number {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
         
         .horse-odds {
-            font-size: 13px;
+            font-size: 11px;
             color: #666;
         }
         
         .final-decision {
             border-radius: 15px;
-            padding: 30px;
+            padding: 30px 20px;
             text-align: center;
             color: white;
             margin-top: 20px;
@@ -272,8 +283,8 @@
         }
         
         .final-decision h2 {
-            font-size: 32px;
-            margin: 20px 0;
+            font-size: 28px;
+            margin: 15px 0;
         }
         
         .info-box {
@@ -282,8 +293,8 @@
             padding: 15px;
             border-radius: 8px;
             margin-top: 15px;
-            font-size: 14px;
-            line-height: 1.8;
+            font-size: 13px;
+            line-height: 1.6;
             color: #333;
         }
         
@@ -295,6 +306,18 @@
             font-size: 12px;
             font-weight: 600;
             margin-left: 10px;
+        }
+        
+        .top3-list {
+            margin-top: 10px;
+        }
+        
+        .top3-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -375,16 +398,13 @@
                     return;
                 }
 
-                // 1. 위험 마번 (500배 이상)
                 const totalHorses = Object.keys(horseMaxOdds).length;
                 const dangerHorses = Object.entries(horseMaxOdds).filter(([_, odds]) => odds >= 500);
                 const ratio500 = (dangerHorses.length / totalHorses * 100);
 
-                // 2. 고배당 조합 (500배 이상)
                 const highPairs = pairs.filter(p => p.odds >= 500).length;
                 const highRatio = (highPairs / pairs.length * 100);
 
-                // 3. 편차 계산
                 const sortedPairs = [...pairs].sort((a, b) => a.odds - b.odds);
                 const topPairs = sortedPairs.slice(0, Math.min(10, sortedPairs.length));
                 
@@ -434,21 +454,19 @@
                     }
                 }
 
-                // 4. TOP3 배당 합계 (새로운 지표!)
                 const top3Sum = sortedPairs.slice(0, 3).reduce((sum, p) => sum + p.odds, 0);
 
-                // 위험 판정 (개선된 기준: 2개 이상 위험 시 회피)
                 const risks = [
-                    { name: '위험 마번', value: ratio500, threshold: 45, isDanger: ratio500 >= 45 },
-                    { name: '고배당 조합', value: highRatio, threshold: 15, isDanger: highRatio >= 15 },
-                    { name: '편차 지수', value: maxVariance, threshold: 7, isDanger: maxVariance >= 7 },
-                    { name: 'TOP3 합계', value: top3Sum, threshold: 120, isDanger: top3Sum >= 120 }
+                    { name: '위험 마번', value: ratio500, threshold: 45, unit: '%', isDanger: ratio500 >= 45 },
+                    { name: '고배당 조합', value: highRatio, threshold: 15, unit: '%', isDanger: highRatio >= 15 },
+                    { name: '편차 지수', value: maxVariance, threshold: 7, unit: '배', isDanger: maxVariance >= 7 },
+                    { name: 'TOP3 합계', value: top3Sum, threshold: 120, unit: '배', isDanger: top3Sum >= 120 }
                 ];
 
                 const dangerCount = risks.filter(r => r.isDanger).length;
                 const isDanger = dangerCount >= 2;
 
-                displayResult(isDanger, risks, dangerCount, dangerHorses, totalHorses, horseMaxOdds, top3Sum, sortedPairs.slice(0, 3));
+                displayResult(isDanger, risks, dangerCount, dangerHorses, totalHorses, horseMaxOdds, sortedPairs.slice(0, 3));
 
             } catch (error) {
                 alert('분석 중 오류: ' + error.message);
@@ -456,13 +474,13 @@
             }
         }
 
-        function displayResult(isDanger, risks, dangerCount, dangerHorses, totalHorses, horseMaxOdds, top3Sum, top3Pairs) {
+        function displayResult(isDanger, risks, dangerCount, dangerHorses, totalHorses, horseMaxOdds, top3Pairs) {
             let html = `
                 <div class="result-card">
                     <div class="result-header">
                         <div class="result-title">🎯 종합 위험도 분석</div>
                         <div class="badge ${isDanger ? 'badge-danger' : 'badge-success'}">
-                            ${dangerCount}/4개 위험 지표
+                            ${dangerCount}/4개 위험
                         </div>
                     </div>
                     
@@ -470,17 +488,11 @@
             `;
 
             risks.forEach(risk => {
-                const displayValue = risk.name === '편차 지수' || risk.name === 'TOP3 합계' 
-                    ? risk.value.toFixed(1) + (risk.name === '편차 지수' ? '배' : '배')
-                    : risk.value.toFixed(1) + '%';
-                
                 html += `
                     <div class="risk-item ${risk.isDanger ? 'danger' : 'safe'}">
                         <div class="risk-item-title">${risk.name}</div>
-                        <div class="risk-item-value">${displayValue}</div>
-                        <div style="font-size:11px; margin-top:5px; color:#666;">
-                            기준: ${risk.threshold}${risk.name.includes('지수') || risk.name.includes('합계') ? '배' : '%'}
-                        </div>
+                        <div class="risk-item-value">${risk.value.toFixed(1)}${risk.unit}</div>
+                        <div class="risk-item-threshold">기준: ${risk.threshold}${risk.unit}</div>
                     </div>
                 `;
             });
@@ -489,12 +501,8 @@
                     </div>
                     
                     <div class="info-box">
-                        <strong>📊 개선된 판정 기준:</strong><br>
-                        4개 지표 중 2개 이상 위험하면 회피 권장 (34경기 분석 기반, 정확도 85.3%)<br>
-                        <br>
-                        <strong>핵심 발견:</strong> TOP3 배당 합계가 가장 강력한 예측 지표!<br>
-                        - 저배당 경주: 평균 42.1배<br>
-                        - 고배당 경주: 평균 201.7배
+                        <strong>개선된 판정:</strong> 4개 지표 중 2개 이상 위험하면 회피 권장<br>
+                        <strong>정확도:</strong> 85.3% (34경기 분석 기반)
                     </div>
                 </div>
 
@@ -504,36 +512,31 @@
                     </div>
                     
                     <div class="metric">
-                        <span class="metric-label">위험 마번 (500배 이상)</span>
+                        <span class="metric-label">위험 마번 (500배+)</span>
                         <span class="metric-value ${risks[0].isDanger ? 'danger' : 'success'}">
-                            ${dangerHorses.length} / ${totalHorses} (${risks[0].value.toFixed(1)}%)
-                        </span>
-                    </div>
-                    
-                    <div class="metric">
-                        <span class="metric-label">TOP3 배당 합계</span>
-                        <span class="metric-value ${risks[3].isDanger ? 'danger' : 'success'}">
-                            ${top3Sum.toFixed(1)}배
+                            ${dangerHorses.length} / ${totalHorses}
                         </span>
                     </div>
                     
                     <div class="detail-section">
                         <div class="detail-title">TOP3 배당 조합</div>
+                        <div class="top3-list">
             `;
 
             top3Pairs.forEach((pair, idx) => {
                 html += `
-                    <div style="background:white; padding:10px; border-radius:8px; margin-bottom:8px;">
+                    <div class="top3-item">
                         <strong>${idx + 1}위:</strong> ${pair.horses} - ${pair.odds.toFixed(1)}배
                     </div>
                 `;
             });
 
             html += `
+                        </div>
                     </div>
                     
                     <div class="detail-section">
-                        <div class="detail-title">마번별 최고 배당 (500배 기준)</div>
+                        <div class="detail-title">마번별 최고 배당</div>
                         <div class="horse-list">
             `;
 
@@ -555,22 +558,20 @@
                 </div>
 
                 <div class="final-decision ${isDanger ? 'danger' : 'success'}">
-                    <div style="font-size: 48px;">${isDanger ? '⚠️' : '✅'}</div>
+                    <div style="font-size: 40px;">${isDanger ? '⚠️' : '✅'}</div>
                     <h2>${isDanger ? '회피 권장!' : '베팅 고려 가능'}</h2>
-                    <p style="font-size: 16px; line-height: 1.8; margin-top: 15px;">
+                    <p style="font-size: 15px; line-height: 1.6; margin-top: 10px;">
             `;
 
             if (isDanger) {
                 const dangerItems = risks.filter(r => r.isDanger).map(r => r.name);
                 html += `
-                    <strong>${dangerItems.join(', ')}</strong>이 위험 구간입니다.<br>
-                    4개 지표 중 ${dangerCount}개가 위험하므로 초고배당 가능성이 높습니다.<br>
-                    회피를 강력히 권장합니다.
+                    ${dangerItems.join(', ')}이 위험 구간입니다.<br>
+                    ${dangerCount}개 지표가 위험하므로 회피를 권장합니다.
                 `;
             } else {
                 html += `
-                    4개 지표 중 ${dangerCount}개만 위험하여 상대적으로 안전한 구간입니다.<br>
-                    단, 복승식 배당만으로는 완벽한 예측이 어려우니<br>
+                    ${dangerCount}개만 위험하여 상대적으로 안전합니다.<br>
                     추가 정보를 참고하여 신중하게 판단하세요.
                 `;
             }
@@ -587,21 +588,3 @@
     </script>
 </body>
 </html>
-```
-
----
-
-## ✅ **개선 사항 요약:**
-
-### **1. 새로운 지표 추가**
-- **TOP3 배당 합계**: 가장 강력한 예측 지표!
-  - 저배당: 평균 42.1배
-  - 고배당: 평균 201.7배
-
-### **2. 개선된 판정 기준**
-```
-4개 지표 중 2개 이상 위험 시 회피:
-1. 위험 마번 ≥ 45% (기존 50% → 완화)
-2. 고배당 조합 ≥ 15% (기존 25% → 강화)
-3. 편차 지수 ≥ 7배 (기존 15배 → 강화)
-4. TOP3 합계 ≥ 120배 (신규)
